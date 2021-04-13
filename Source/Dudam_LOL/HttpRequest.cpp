@@ -16,15 +16,13 @@
 UHttpRequest::UHttpRequest(const class FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
-	HttpModule = &FHttpModule::Get();
-	BlockTimer = 120.f;
-	BlockRequest = false;
-	CurrentIndex = 0;
 	LoadedGameData.Empty();
+	GameData.SummonerData.Empty();
+	
 
 	FFileHelper::LoadFileToString(MyAPI, *(FPaths::ProjectDir() + TEXT("API_key.txt"))); // read api key
 
-	RequsetClanMemberList();
+	//RequsetClanMemberList();
 	//FFileHelper::LoadFileToStringArray(ClanMemberList, *(FPaths::ProjectDir() + TEXT("ClanMemberList.txt"))); // Get Our Clan's MememberID
 	//IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	
@@ -32,6 +30,7 @@ UHttpRequest::UHttpRequest(const class FObjectInitializer& ObjectInitializer)
 
 void UHttpRequest::RequsetClanMemberList()
 {
+	HttpModule = &FHttpModule::Get();
 	TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
 	
 	
@@ -45,9 +44,7 @@ void UHttpRequest::RequsetClanMemberList()
 
 void UHttpRequest::OnResponseReceivedClanMemberList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
-
-
-	FString BasePath = FPaths::FPaths::ProjectDir();
+	FString BasePath = FPaths::ProjectDir();
 	FString FileSavePath = BasePath + TEXT("ClanMemberList.txt");	
 
 	// DownLoad Clan Member List File.
@@ -57,30 +54,32 @@ void UHttpRequest::OnResponseReceivedClanMemberList(FHttpRequestPtr Request, FHt
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 		IFileHandle* FileHandler = PlatformFile.OpenWrite(*FileSavePath);
-		FFileHelper::LoadFileToStringArray(ClanMemberList, *(FileSavePath));
+		
 
 		if (FileHandler)
 		{
-	
-			FileHandler->Write(Response->GetContent().GetData(), Response->GetContentLength());
-			FileHandler->Flush();		
 
+			FileHandler->Write(Response->GetContent().GetData(), Response->GetContentLength());
+			FileHandler->Flush();
 			delete FileHandler;
-			bWasSuccessful = true;
 		}
+		
 	}
 	else
 	{
-		FFileHelper::LoadFileToStringArray(ClanMemberList, *(FileSavePath));
+		UE_LOG(LogClass, Warning, TEXT("RequsetClanMemberList Error Code, %d"), (Response->GetResponseCode()));		
 	}
+	FFileHelper::LoadFileToStringArray(ClanMemberList, *(FileSavePath));
 }
 
 
 
 void UHttpRequest::RequsetAccountbyUserName(FString UserName)
 {
+
 	if (!LoadLocalUserInfo(UserName)) // Userinfo Not Exist // Request Riot API
 	{
+		HttpModule = &FHttpModule::Get();
 		TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
 		FString URL = SummonerV4_By_UserName + FGenericPlatformHttp::UrlEncode(UserName) + TEXT("?") + MyAPI;
 
@@ -153,24 +152,21 @@ void UHttpRequest::OnResponseReceviedByUserName(FHttpRequestPtr Request, FHttpRe
 			}
 
 		}
-		else if(Response->GetResponseCode() == 429) 
-		{
-			UE_LOG(LogClass, Warning, TEXT("Rate limit exceeded"));
-		}
-
+	
 		RequestMatchlistsByAccountId(PlayerAccountID);
 	}
-	else
+	else 
 	{
-		//UE_LOG(LogClass, Warning, (Response->GetResponseCode()));
+		UE_LOG(LogClass, Warning, TEXT("RequsetAccountbyUserName Error Code, %d"),(Response->GetResponseCode()));
 	}
+
 	
 }
 
 void UHttpRequest::RequestMatchlistsByAccountId(FString EncryptedAccountID)
 {
 	// Get Lastest 100 Game's List
-
+	HttpModule = &FHttpModule::Get();
 	TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
 	FString URL = MatchV4_By_AccountID + EncryptedAccountID + TEXT("?") + MyAPI;
 
@@ -206,33 +202,26 @@ void UHttpRequest::OnResponseReceviedMatchListByAccountID(FHttpRequestPtr Reques
 				UserGameID.Add(MatchObejct->GetNumberField("GameID"));
 			}
 		}
-		else
-		{
-			UE_LOG(LogClass, Warning, TEXT("JsonObject is not valid"));
-		}
-
-	
 
 		for (int i = 0; i < 5;)
-		{
-			if (!LoadLocalGameData(UserGameID[i]))
-			{
-				RequsetGameDataByGameID(UserGameID[i]);
-				UserGameID.Remove(0);
+		{ // Get Lastest game data,
+			if (UserGameID.IsValidIndex(0) && !LoadLocalGameData(UserGameID[0]))
+			{//Data not Exist
+				RequsetGameDataByGameID(UserGameID[0]);
 				i++;
-			}		
+			}				
+			UserGameID.RemoveAt(0);
 		}
-	}
+	}	
 	else
 	{
-		UE_LOG(LogClass, Warning, TEXT("RequestMatchlistsByAccountId Failed"));
+		UE_LOG(LogClass, Warning, TEXT("RequestMatchlistsByAccountId Error Code, %d"), (Response->GetResponseCode()));
 	}
-	
-	
 }
 
 void UHttpRequest::RequsetGameDataByGameID(int64 GameInstanceID)
 {
+	HttpModule = &FHttpModule::Get();
 	TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
 	FString URL = MatchV4_By_GameID + FString::Printf(TEXT("%lld"), GameInstanceID) + TEXT("?") + MyAPI;
 
@@ -247,13 +236,6 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 	if (Response->GetResponseCode() == 200)
 	{
 		GameData.SummonerData.Empty();
-		for (int i = 0; i < 10; i++)
-		{
-			FUserData UserData;
-			GameData.SummonerData.Add(UserData);
-		}
-
-
 
 		TSharedPtr<FJsonObject> JsonObject;
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
@@ -292,6 +274,10 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 			{
 				ParticipantObject = participantArr[i]->AsObject();
 
+				FUserData UserData;
+				GameData.SummonerData.Add(UserData);
+				
+
 				GameData.SummonerData[i].UserNumber = ParticipantObject->GetIntegerField("participantId");
 				GameData.SummonerData[i].TeamNumber = ParticipantObject->GetIntegerField("teamId");
 				GameData.SummonerData[i].ChampionID = ParticipantObject->GetIntegerField("championId");
@@ -313,18 +299,15 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 			{
 				IdentitiesObject = arr->AsObject();
 
-
 				for (int i = 0; i < 10; i++)
 				{
 					if (GameData.SummonerData[i].UserNumber == IdentitiesObject->GetIntegerField("participantId"))
 					{
 						GameData.SummonerData[i].UserName = IdentitiesObject->GetObjectField("player")->GetStringField("summonerName");
 					}
-
 				}
 			}
-
-
+			///////////////////////////////// is Clan Game ?? /////////////////////////////////
 			for (int i = 0; i < GameData.SummonerData.Num(); i++)
 			{
 				for (int k = 0; k < ClanMemberList.Num(); k++)
@@ -347,21 +330,19 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 					}
 				}
 			}
-
+			// ____________________________________________________________________________//
 		}
 		else
 		{
 			UE_LOG(LogClass, Warning, TEXT("JsonObject is not valid"));
 		}
-
 		SaveGameInstaceID(GameData.GameID);
-		//SaveGameInstaceID(GameData.GameID);
+		//LoadedGameData.Emplace(GameData);
 	}
 	else
 	{
-		UE_LOG(LogClass, Warning, TEXT("RequsetGameDataByGameID Failed"));
+		UE_LOG(LogClass, Warning, TEXT("RequsetGameDataByGameID Error Code, %d"), (Response->GetResponseCode()));
 	}
-	
 }
 	
 
@@ -403,9 +384,8 @@ void UHttpRequest::SaveGameInstaceID(int64 CurrentGameID)
 	
 	Writer->Close();
 
-
-	bool SaveSuccess = FFileHelper::SaveStringToFile(*Data, *(FPaths::ProjectDir() + TEXT("GameData/") + SaveFileName + TEXT(".Json") ));
-	if (SaveSuccess)
+	
+	if (FFileHelper::SaveStringToFile(*Data, *(FPaths::ProjectDir() + TEXT("GameData/") + SaveFileName + TEXT(".Json"))))
 	{
 		UE_LOG(LogClass, Warning, TEXT("SaveFile Success"));
 	}
@@ -413,52 +393,25 @@ void UHttpRequest::SaveGameInstaceID(int64 CurrentGameID)
 	{
 		UE_LOG(LogClass, Warning, TEXT("SaveFile Failed"));
 	}
-	
-}
-
-bool UHttpRequest::CheckExistGame(int64 CurrentGameID)
-{
-	FString SaveFileName = FString::Printf(TEXT("%lld"), CurrentGameID) + TEXT(".json");
-
-	IFileManager& FileManager = IFileManager::Get();
-
-	TArray<FString> FoundFiles;
-	FString TempPath = (FPaths::ProjectDir() + TEXT("GameData/"));
-	const TCHAR* RootPath = *TempPath;
-	const TCHAR* Extension = _T("*.json");
-
-	FileManager.FindFiles(FoundFiles, RootPath, Extension);
-
-	for (int i = 0; i < FoundFiles.Num(); i++)
-	{
-		if (FoundFiles[i] == SaveFileName)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	return false;
 }
 
 bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 {
 	
 	bool bLoadSuccess = false;
+	GameData.SummonerData.Empty();
 
 	IFileManager* FileManager = &IFileManager::Get();
 	TArray<FString> FoundFiles;
 	FString TargetDir = FPaths::ProjectDir() + TEXT("GameData/");
 	FString FileExtension = TEXT(".Json");
 	FileManager->FindFiles(FoundFiles, *TargetDir, *FileExtension);
-
+	FString CurrentFileName = FString::Printf(TEXT("%lld"), CurrentGameID) + TEXT(".Json");
 	
-	if (FoundFiles.FindByKey(CurrentGameID + TEXT(".Json")) != nullptr)
+	if (FoundFiles.FindByKey(CurrentFileName) != nullptr)
 	{
 		FString CurrentGameData;
-		bLoadSuccess = FFileHelper::LoadFileToString(CurrentGameData, *TargetDir);
+		FFileHelper::LoadFileToString(CurrentGameData, *(TargetDir + CurrentFileName));
 
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(CurrentGameData);
 		TSharedPtr<FJsonObject> JsonObject;
@@ -467,7 +420,7 @@ bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 		if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
 		{	// if Player is not Out clanMember . Do not Save user data
 
-			
+			GameData.GameID = CurrentGameID;
 			GameData.CreationTime = JsonObject->GetObjectField(TEXT("GameData"))->GetNumberField(TEXT("CreationTime"));
 			GameData.GameDuration = JsonObject->GetObjectField(TEXT("GameData"))->GetNumberField(TEXT("GameDuration"));
 			GameData.WinningTeamNumber = JsonObject->GetObjectField(TEXT("GameData"))->GetNumberField(TEXT("WinningTeam"));
@@ -479,34 +432,32 @@ bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 
 			for (int i = 0; i < 10; i++)
 			{
+				FUserData UserData;
+
+				GameData.SummonerData.Add(UserData);
+
 				GameData.SummonerData[i].ChampionID = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetNumberField(TEXT("ChampId"));
 				GameData.SummonerData[i].TeamNumber = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetNumberField(TEXT("TeamNumber"));
 				GameData.SummonerData[i].bIsWin = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetBoolField(TEXT("isWin"));
 				GameData.SummonerData[i].UserName = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetStringField(TEXT("UserName"));
 			}
-		
-		}
-
-
-		LoadedGameData.Add(GameData);
+			
+			bLoadSuccess = true;		
+		}	
 	}
-
-
-
 	return bLoadSuccess;
 }
 
 
 bool UHttpRequest::LoadLocalUserInfo(FString UserSummonerID)
 {
-	
 	bool bLoadSuccess = false;
 
 	if (ClanMemberList.Find(UserSummonerID))
 	{
 		FString UserData;
 		FString FilePath = FPaths::ProjectDir() + TEXT("UserData/") + UserSummonerID + TEXT(".Json");
-		bLoadSuccess = FFileHelper::LoadFileToString(UserData, *FilePath);
+		FFileHelper::LoadFileToString(UserData, *FilePath);
 
 		//Create a reader pointer to read the json data
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(UserData);
@@ -523,47 +474,13 @@ bool UHttpRequest::LoadLocalUserInfo(FString UserSummonerID)
 			Playerpuuid = JsonObject->GetStringField(TEXT("Playerpuuid"));
 			PlayerSummonerLevel = JsonObject->GetIntegerField(TEXT("PlayerSummonerLevel"));
 			PlayerRevisionDate = JsonObject->GetIntegerField(TEXT("PlayerRevisionDate"));
+			
+			bLoadSuccess = true;
+		}
+		else
+		{
+			bLoadSuccess = false;
 		}
 	}
-
 	return bLoadSuccess;
-
-}
-void UHttpRequest::RequsetPngbyChampId(int64 ChampId)
-{
-	TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
-
-	//FString ChampionId = ChampId;
-
-	FString URL = ChampPngAsset + TEXT("champion1.png"); // TEXT("Aatrox") + TEXT(".Png");
-
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetURL(URL);
-	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UHttpRequest::OnResponseReceivedPngbyChampId);
-	HttpRequest->ProcessRequest();
-}
-
-void UHttpRequest::OnResponseReceivedPngbyChampId(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
-{
-
-	FString ImageAssetPath = TEXT("ChampImage/");
-	FString BasePath = FPaths::ProjectDir() + ImageAssetPath;
-	FString FileSavePath = BasePath + TEXT("Aatrox1.png");		// 경로를 지정 한다.
-
-
-	// 해당 플렛폼에 맞는 File 클래스 만들기.
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-	// Dir tree 를 만든다.
-	//PlatformFile.CreateDirectoryTree(*BasePath);
-	IFileHandle* FileHandler = PlatformFile.OpenWrite(*FileSavePath);
-
-	if (FileHandler) 
-	{
-		// 파일을 새로 쓴다.
-		FileHandler->Write(Response->GetContent().GetData(), Response->GetContentLength());
-		FileHandler->Flush();		// 저장.
-	}
-
-	delete FileHandler;
 }

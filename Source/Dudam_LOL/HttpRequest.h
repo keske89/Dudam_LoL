@@ -104,16 +104,6 @@ public:
 	UFUNCTION(BlueprintCallable, DisplayName = "Save GameInstance_Json", Category = "Dudam_Lol")
 	void SaveGameInstaceID(int64 CurrentGameID);
 
-	UFUNCTION(BlueprintCallable, DisplayName = "Check GameInstance", Category = "Dudam_Lol")
-	bool CheckExistGame(int64 CurrentGameID);
-
-
-	/////////////////////////////////// Request Riot API for Update GameData ///////////////////////////////////////////////
-	UFUNCTION(BlueprintCallable, DisplayName = "Requset Champ Png By Champ Id", Category = "Dudam_Lol")
-	void RequsetPngbyChampId(int64 ChampId);
-
-	void OnResponseReceivedPngbyChampId(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-
 	////////////////////////////////// Load From Local Json GameData for UI ////////////////////////////////////////////
 
 	UFUNCTION(BlueprintCallable, DisplayName = "Load UserInfo From Local DB", Category = "Dudam_Lol")
@@ -122,8 +112,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, DisplayName = "Load GameInstance From Local DB", Category = "Dudam_Lol")
 	bool LoadLocalGameData(int64 CurrentGameID);
-
-
 
 	
 	///////////////////////////////// RIOT API URL ///////////////////////////////////////////////
@@ -135,9 +123,6 @@ public:
 
 	UPROPERTY()
 	FString MatchV4_By_GameID = FString(TEXT("https://kr.api.riotgames.com/lol/match/v4/matches/"));
-
-	UPROPERTY()
-	FString ChampPngAsset = FString(TEXT("https://ddragon.leagueoflegends.com/cdn/11.7.1/img/champion/"));
 
 
 	///////////////////////////////// User Info /////////////////////////////////////////////////
@@ -186,18 +171,10 @@ public:
 	FGameData GameData;
 	
 	UPROPERTY(BlueprintReadOnly)
-	bool BlockRequest;
-
-	UPROPERTY(BlueprintReadOnly)
-	float BlockTimer;
-
-	UPROPERTY(BlueprintReadOnly)
-	int CurrentIndex;
-
-	UPROPERTY(BlueprintReadOnly)
 	TArray<FGameData> LoadedGameData;
 
 private:
+	
 	FHttpModule* HttpModule;
 	
 	UPROPERTY()
