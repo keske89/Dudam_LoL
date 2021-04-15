@@ -16,7 +16,7 @@
 UHttpRequest::UHttpRequest(const class FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
-	LoadedGameData.Empty();
+	LoadedData.Empty();
 	GameData.SummonerData.Empty();
 	
 
@@ -28,7 +28,7 @@ UHttpRequest::UHttpRequest(const class FObjectInitializer& ObjectInitializer)
 	
 }
 
-void UHttpRequest::RequsetClanMemberList()
+void UHttpRequest::RequestClanMemberList()
 {
 	HttpModule = &FHttpModule::Get();
 	TSharedPtr<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
@@ -70,6 +70,8 @@ void UHttpRequest::OnResponseReceivedClanMemberList(FHttpRequestPtr Request, FHt
 		UE_LOG(LogClass, Warning, TEXT("RequsetClanMemberList Error Code, %d"), (Response->GetResponseCode()));		
 	}
 	FFileHelper::LoadFileToStringArray(ClanMemberList, *(FileSavePath));
+
+	
 }
 
 
@@ -93,6 +95,8 @@ void UHttpRequest::RequsetAccountbyUserName(FString UserName)
 		
 		RequestMatchlistsByAccountId(PlayerAccountID);
 	}
+
+
 }
 
 
@@ -153,14 +157,14 @@ void UHttpRequest::OnResponseReceviedByUserName(FHttpRequestPtr Request, FHttpRe
 
 		}
 	
-		RequestMatchlistsByAccountId(PlayerAccountID);
+		//RequestMatchlistsByAccountId(PlayerAccountID);
 	}
 	else 
 	{
 		UE_LOG(LogClass, Warning, TEXT("RequsetAccountbyUserName Error Code, %d"),(Response->GetResponseCode()));
 	}
 
-	
+	OnRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 }
 
 void UHttpRequest::RequestMatchlistsByAccountId(FString EncryptedAccountID)
@@ -183,6 +187,7 @@ void UHttpRequest::OnResponseReceviedMatchListByAccountID(FHttpRequestPtr Reques
 	if (Response->GetResponseCode() == 200)
 	{
 		UserGameID.Empty();
+		LoadedData.Empty();
 
 		TSharedPtr<FJsonObject> JsonObject;
 
@@ -330,14 +335,16 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 					}
 				}
 			}
-			// ____________________________________________________________________________//
+			SaveGameInstaceID(GameData.GameID);
+			LoadedData.Add(GameData.GameID, GameData);
+
 		}
+		// ____________________________________________________________________________//
 		else
 		{
 			UE_LOG(LogClass, Warning, TEXT("JsonObject is not valid"));
 		}
-		SaveGameInstaceID(GameData.GameID);
-		//LoadedGameData.Emplace(GameData);
+		
 	}
 	else
 	{
@@ -397,8 +404,16 @@ void UHttpRequest::SaveGameInstaceID(int64 CurrentGameID)
 
 bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 {
-	
 	bool bLoadSuccess = false;
+
+	// Already Loaded
+	if (LoadedData.Find(CurrentGameID) != nullptr)
+	{
+		bLoadSuccess = true;
+		return bLoadSuccess;
+	}
+	
+	
 	GameData.SummonerData.Empty();
 
 	IFileManager* FileManager = &IFileManager::Get();
@@ -441,7 +456,7 @@ bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 				GameData.SummonerData[i].bIsWin = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetBoolField(TEXT("isWin"));
 				GameData.SummonerData[i].UserName = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetStringField(TEXT("UserName"));
 			}
-			
+			LoadedData.Add(GameData.GameID,GameData);
 			bLoadSuccess = true;		
 		}	
 	}
@@ -483,4 +498,10 @@ bool UHttpRequest::LoadLocalUserInfo(FString UserSummonerID)
 		}
 	}
 	return bLoadSuccess;
+}
+
+
+TMap<int64, FGameData> UHttpRequest::GetLoadedData()
+{
+	return LoadedData;
 }

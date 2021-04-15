@@ -7,7 +7,7 @@
 #include "Runtime/Online/HTTP/Public/Http.h"
 #include "HttpRequest.generated.h"
 
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRequestFinishedDelegate, bool, bIsSuccess, int, ResponseCode);
 
 USTRUCT(Blueprintable)
 struct DUDAM_LOL_API FUserData
@@ -97,12 +97,22 @@ public:
 	void OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	
 	UFUNCTION(BlueprintCallable, DisplayName = "Requset Clan Member List", Category = "Dudam_Lol")
-	void RequsetClanMemberList();
+	void RequestClanMemberList();
 
 	void OnResponseReceivedClanMemberList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 
 	UFUNCTION(BlueprintCallable, DisplayName = "Save GameInstance_Json", Category = "Dudam_Lol")
 	void SaveGameInstaceID(int64 CurrentGameID);
+
+	/////////////////////////////////// Delegate ///////////////////////////////////////////////////////
+
+	UPROPERTY(BlueprintAssignable)
+	FRequestFinishedDelegate OnRequestFinishedCallback;
+
+
+	//-----------------------------------------------------------------------------------------------//
+
+
 
 	////////////////////////////////// Load From Local Json GameData for UI ////////////////////////////////////////////
 
@@ -112,6 +122,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, DisplayName = "Load GameInstance From Local DB", Category = "Dudam_Lol")
 	bool LoadLocalGameData(int64 CurrentGameID);
+
+	UFUNCTION(BlueprintCallable, DisplayName = "Load GameInstance From Local DB", Category = "Dudam_Lol")
+	TMap<int64,FGameData> GetLoadedData();
 
 	
 	///////////////////////////////// RIOT API URL ///////////////////////////////////////////////
@@ -171,8 +184,7 @@ public:
 	FGameData GameData;
 	
 	UPROPERTY(BlueprintReadOnly)
-	TArray<FGameData> LoadedGameData;
-
+	TMap<int64, FGameData> LoadedData;
 private:
 	
 	FHttpModule* HttpModule;
