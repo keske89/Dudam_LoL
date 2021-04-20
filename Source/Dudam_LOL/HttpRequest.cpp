@@ -215,7 +215,15 @@ void UHttpRequest::OnResponseReceviedMatchListByAccountID(FHttpRequestPtr Reques
 				RequsetGameDataByGameID(UserGameID[0]);
 				i++;
 			}				
-			UserGameID.RemoveAt(0);
+			else if (UserGameID.IsValidIndex(0))
+			{
+				UserGameID.RemoveAt(0);
+			}
+			else
+			{
+				break;
+			}
+			
 		}
 	}	
 	else
