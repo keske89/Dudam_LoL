@@ -164,7 +164,7 @@ void UHttpRequest::OnResponseReceviedByUserName(FHttpRequestPtr Request, FHttpRe
 		UE_LOG(LogClass, Warning, TEXT("RequsetAccountbyUserName Error Code, %d"),(Response->GetResponseCode()));
 	}
 
-	OnRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
+	OnSummonerRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 }
 
 void UHttpRequest::RequestMatchlistsByAccountId(FString EncryptedAccountID)
@@ -222,6 +222,8 @@ void UHttpRequest::OnResponseReceviedMatchListByAccountID(FHttpRequestPtr Reques
 	{
 		UE_LOG(LogClass, Warning, TEXT("RequestMatchlistsByAccountId Error Code, %d"), (Response->GetResponseCode()));
 	}
+
+	OnMatchListRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 }
 
 void UHttpRequest::RequsetGameDataByGameID(int64 GameInstanceID)
@@ -350,6 +352,8 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 	{
 		UE_LOG(LogClass, Warning, TEXT("RequsetGameDataByGameID Error Code, %d"), (Response->GetResponseCode()));
 	}
+
+	OnMatchInfoRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 }
 	
 
@@ -378,6 +382,7 @@ void UHttpRequest::SaveGameInstaceID(int64 CurrentGameID)
 	{
 			Writer->WriteObjectStart(TEXT("Player") + FString::FromInt(i + 1));
 
+				Writer->WriteValue<int>(TEXT("UserNumber"), GameData.SummonerData[i].UserNumber);
 				Writer->WriteValue<int>(TEXT("ChampId"), GameData.SummonerData[i].ChampionID);
 				Writer->WriteValue<int>(TEXT("TeamNumber"), GameData.SummonerData[i].TeamNumber);
 				Writer->WriteValue<bool>(TEXT("isWin"), GameData.SummonerData[i].bIsWin);
@@ -451,6 +456,7 @@ bool UHttpRequest::LoadLocalGameData(int64 CurrentGameID)
 
 				GameData.SummonerData.Add(UserData);
 
+				GameData.SummonerData[i].UserNumber = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" + FString::FromInt(i + 1)))->GetNumberField(TEXT("UserNumber"));
 				GameData.SummonerData[i].ChampionID = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetNumberField(TEXT("ChampId"));
 				GameData.SummonerData[i].TeamNumber = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetNumberField(TEXT("TeamNumber"));
 				GameData.SummonerData[i].bIsWin = JsonObject->GetObjectField(TEXT("SummonerData"))->GetObjectField(TEXT("Player" +  FString::FromInt(i + 1)))->GetBoolField(TEXT("isWin"));

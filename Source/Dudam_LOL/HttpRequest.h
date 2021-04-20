@@ -107,9 +107,13 @@ public:
 	/////////////////////////////////// Delegate ///////////////////////////////////////////////////////
 
 	UPROPERTY(BlueprintAssignable)
-	FRequestFinishedDelegate OnRequestFinishedCallback;
+	FRequestFinishedDelegate OnSummonerRequestFinishedCallback;
 
+	UPROPERTY(BlueprintAssignable)
+	FRequestFinishedDelegate OnMatchInfoRequestFinishedCallback;
 
+	UPROPERTY(BlueprintAssignable)
+	FRequestFinishedDelegate OnMatchListRequestFinishedCallback;
 	//-----------------------------------------------------------------------------------------------//
 
 
