@@ -21,7 +21,10 @@ struct DUDAM_LOL_API FUserData
 	int TeamNumber;
 
 	UPROPERTY(BlueprintReadOnly)
-	bool bIsWin;
+	bool bIsWin = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsClanMember = false;
 
 	UPROPERTY(BlueprintReadOnly)
 	int UserNumber;
@@ -41,6 +44,9 @@ struct DUDAM_LOL_API FGameData
 
 	UPROPERTY(BlueprintReadOnly)
 	int64 CreationTime;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString Date;
 
 	UPROPERTY(BlueprintReadOnly)
 	int64 GameDuration;
@@ -103,6 +109,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, DisplayName = "Save GameInstance_Json", Category = "Dudam_Lol")
 	void SaveGameInstaceID(int64 CurrentGameID);
+
+	UFUNCTION(BlueprintCallable, DisplayName = "UnixTimeToDate", Category = "Dudam_Lol")
+	FDateTime GetDateTime(int64 UnixTime);
 
 	/////////////////////////////////// Delegate ///////////////////////////////////////////////////////
 
