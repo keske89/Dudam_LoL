@@ -224,17 +224,19 @@ void UHttpRequest::OnResponseReceviedMatchListByAccountID(FHttpRequestPtr Reques
 			}
 			else
 			{
+				OnMatchInfoRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 				break;
 			}
 			
 		}
+		OnMatchListRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
 	}	
 	else
 	{
 		UE_LOG(LogClass, Warning, TEXT("RequestMatchlistsByAccountId Error Code, %d"), (Response->GetResponseCode()));
 	}
 
-	OnMatchListRequestFinishedCallback.Broadcast(bWasSuccessful, Response->GetResponseCode());
+	
 }
 
 void UHttpRequest::RequsetGameDataByGameID(int64 GameInstanceID)
@@ -336,7 +338,7 @@ void UHttpRequest::OnResponseReceivedByGameID(FHttpRequestPtr Request, FHttpResp
 				{
 					GameData.bIsClanGame = true;
 				}
-				else if (GameData.QueueId == 430 || GameData.QueueId == 440 || GameData.QueueId == 450 || GameData.QueueId == 900) //일반, 칼바람, 우르프
+				else if (GameData.QueueId == 430 || GameData.QueueId == 440 || GameData.QueueId == 450 || GameData.QueueId == 900 || GameData.QueueId == 1020) //일반, 칼바람, 우르프, 단일챔피언 모드
 				{
 					if (GameData.ClanMemberNum > 2)
 					{
