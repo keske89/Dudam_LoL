@@ -24,5 +24,10 @@
 				"Mac"
 			]
 		}
+	],
+	"TargetPlatforms": [
+		"AllDesktop",
+		"WindowsNoEditor",
+		"WindowsNoEditorWin32"
 	]
 }
